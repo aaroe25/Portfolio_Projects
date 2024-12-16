@@ -1,0 +1,187 @@
+# **Bellabeat FitBit Fitness Tracker Data Analysis**
+
+# Introduction 
+Bellabeat is a high-tech manufacturer of health-focused products for women that was founded in 2013 by Urska Srsen and Sando Mur. Collecting data on activity, sleep, stress, and reproductive health has allowed Bellabeat to empower women with knowledge about their own health and habits. Since it was founded in 2013, Bellabeat has grown rapidly and quickly positioned itself as a tech-driven wellness company for women.
+
+# Ask
+***Business task***: 
+Identify growth opportunities to guide effective marketing strategy.
+
+***Key Stakeholders***:
+* Urska Srsen - Bellabeat's cofounder and Chief Creative Officer
+* Sando Mur - Bellabeat's cofounder, mathematitian, key member of the executive team
+* Bellabeat's marketing analytics team
+
+# Prepare
+***Data set used for analysis***:
+FitBit Fitness Tracker Data
+This data set is publicly available on Kaggle and is composed of data gathered by Amazon Mechanical Turk.
+The data set includes personal tracker data such as heart rate, physical activit and slepp monitoring of 30 FitBit users.
+
+* License: CC0: Public Domain
+* Data consists of 29 .csv files
+* Data is downloaded in .csv format and stored locally
+* Data is organized in both wide and long formats
+* Limitations: small sample size, not cucurrent (collected in 2016)
+
+# Process
+***Data processing and cleaning using R***:
+
+Step 1: Import data into R
+# Install and load necessary packages
+
+install.packages("tidyverse")
+install.packages("here")
+install.packages("skimr")
+install.packages("janitor")
+install.packages("lubridate")
+install.packages("dplyr")
+library(tidyverse)
+library(here)
+library(skimr)
+library(janitor)
+library(lubridate)
+library(dplyr)
+
+# Load data sets
+
+daily_activity <- read_csv("/kaggle/input/fitbit/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/dailyActivity_merged.csv")
+daily_sleep <- read_csv("/kaggle/input/fitbit/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/sleepDay_merged.csv")
+
+# Preview and explore data setsdatasets
+
+head(daily_activity)
+colnames(daily_activity)
+
+head(daily_sleep)
+colnames(daily_sleep)
+
+Step 2: Clean data
+# Understanding dataframes - identifying unique IDs in each dataframe:
+# daily_activity
+n_distinct(daily_activity$Id)
+
+# daily_sleep
+n_distinct(daily_sleep$Id)
+
+We have identified that daily_sleep dataframe has less unique participant IDs that daily_activity dataframe.
+
+# Understanding dataframes - identifying number of observations in each dataframe
+# daily_activity
+nrow(daily_activity)
+
+# daily_sleep
+nrow(daily_sleep)
+
+# Removing duplicates and N/A
+sum(duplicated(daily_activity))
+daily_activity <- daily_activity %>%
+    distinct() %>%
+    drop_na()
+
+sum(duplicated(daily_sleep))
+daily_sleep <- daily_sleep %>%
+    distinct() %>%
+    drop_na()
+
+# Fixing date and time formats
+daily_activity$ActivityDate=as.POSIXct(daily_activity$ActivityDate, format="%m/%d/%Y", tz=Sys.timezone())
+str(daily_activity)
+
+daily_sleep$SleepDay=as.POSIXct(daily_sleep$SleepDay, format="%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
+str(daily_sleep)
+
+Analyze
+# daily_activity
+daily_activity %>%
+    select(TotalSteps, TotalDistance, SedentaryMinutes) %>%
+summary()
+
+The average amount of steps taken in a day is 7638, which is fall under recommended amount on 7000-10000.
+
+# daily_sleep
+daily_sleep %>%
+    select(TotalSleepRecords, TotalMinutesAsleep, TotalTimeInBed) %>%
+summary()
+
+The average time asleep is 419.2, which is 6.99 hours. The recommended amount of hours of sleep for adults is 7 or hours a night.
+
+Share
+
+# Install ggplot2 package
+install.packages("ggplot2")
+
+ggplot(daily_activity, aes(x = TotalSteps, y = Calories)) +
+  geom_point(aes(color = Calories)) +
+  geom_smooth(color = "orange", method = "loess", formula = y ~ x, se = FALSE) +
+  labs(title = "Total Steps Vs Calories",
+       x = "Total Steps", 
+       y = "Calories") +
+  theme(
+    plot.title = element_text(size = 16),
+    axis.text.x = element_text(size = 14),
+    axis.text.y = element_text(size = 14),
+    axis.title.x = element_text(size = 16),
+    axis.title.y = element_text(size = 16)
+  )
+
+The analysis shows a positive correlation between amount of steps and calories burned. Users can be encourage to ro complete more daily steps to burn more calories.
+
+ggplot(daily_sleep, aes(x=TotalTimeInBed, y=TotalMinutesAsleep)) + geom_point(aes(color=TotalMinutesAsleep)) + geom_smooth(color = "orange", method = "loess", formula = y ~ x, se = FALSE) +
+  labs(title = "Relationship Between Time In Bed and Time Asleep",
+       x = "Total Time In Bed", 
+       y = "Total Time Asleep") +
+    theme(
+    plot.title = element_text(size = 16),
+    axis.text.x = element_text(size = 14),
+    axis.text.y = element_text(size = 14),
+    axis.title.x = element_text(size = 16),
+    axis.title.y = element_text(size = 16)
+  )
+
+The analysis shows a positive relationship between amonut of time participants spend in bed and time they are asleep.
+
+# Merging daily_activity and daily_sleep data seta together by Id and Date.
+# Because two dataframes have differenr name for columns representing date information, I will be renaming these columns to "Date" in both dataframes.
+names(daily_activity)[names(daily_activity) == "ActivityDate"] <- "Date"
+names(daily_sleep)[names(daily_sleep) == "SleepDay"] <- "Date"
+head(daily_activity)
+head(daily_sleep)
+
+# Merging daily_activity and daily_sleep
+combined_data <- merge(daily_activity, daily_sleep, by=c ("Id", "Date"))
+head(combined_data)
+
+# Verifying number of participants in combined dataframe
+n_distinct(combined_data$Id)
+
+ggplot(combined_data, aes(x=TotalSteps, y=TotalMinutesAsleep)) + 
+    geom_point() + 
+    geom_smooth(method = "loess", formula = y ~ x) + 
+    labs(title = "Relationship Between Total Steps and Total Time Asleep", x = "Total Steps", y = "Total Time Asleep/minutes") +
+    theme(
+    plot.title = element_text(size = 16),
+    axis.text.x = element_text(size = 14),
+    axis.text.y = element_text(size = 14),
+    axis.title.x = element_text(size = 16),
+    axis.title.y = element_text(size = 16)
+  )
+
+ggplot(combined_data, aes(x=Calories, y=TotalMinutesAsleep)) + 
+    geom_point() + 
+    geom_smooth(method = "loess", formula = y ~ x) + 
+    labs(title = "Relationship Between Calories Burned and Total Time Asleep", x = "Calories", y = "Total Time Asleep/minutes") +
+    theme(
+    plot.title = element_text(size = 16),
+    axis.text.x = element_text(size = 14),
+    axis.text.y = element_text(size = 14),
+    axis.title.x = element_text(size = 16),
+    axis.title.y = element_text(size = 16)
+  )
+
+The analysis does not show definite correlation between time asleep and steps and time asleep and calories burned. No conclusion van be made wether amount of steps or calories burned have impact on sleep duration.
+
+Act
+Activity tracking: Encourage users to meet their daily amount steps goal by providing updates notifications during a day and alerting users when it is time to break their sedentary period. Provide users with a their activity summary at the end of the day to include overall day's activity status (Sedentary, Lightly Active, Fairly Active, Very Active, Super Active). Bellabeat can look into implementation of special notifications that include tips and suggestions on how users can achieve their daily goals.
+
+Sleep tracking: Sleep is essencial, so the app can help users to identify their sleep patterns and make suggestions on how to improve their quality of sleep. Users can be encouraged to set their bed time schedule and with help of app notifications can maintain healthy sleep routine and stick to consistent hours of sleep a night.
